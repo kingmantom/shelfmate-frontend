@@ -1,13 +1,44 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* איפוס וסגנונות כלליים */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+               'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+               sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* רקע ירוק בהיר עם פיזור תמונות מתוך src/images */
+  background-color: #e6f9eb;
+  background-image:
+    url("./images/dollars.png"),
+    url("./images/recycle.png"),
+    url("./images/dollars.png"),
+    url("./images/recycle.png");
+  background-position:
+    10% 15%,   /* תמונה ראשונה */
+    80% 10%,   /* תמונה שנייה */
+    20% 75%,   /* תמונה שלישית */
+    85% 80%;   /* תמונה רביעית */
+  background-size:
+    120px 120px,  /* גודל תמונה ראשונה */
+    80px 80px,    /* שנייה */
+    150px 150px,  /* שלישית */
+    100px 100px;  /* רביעית */
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+               monospace;
+}
+
+/* מבטיח שהרקע יתפרס על כל גובה המסך */
+#root {
+  min-height: 100vh;
 }
