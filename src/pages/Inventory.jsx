@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { PlusCircle, ScanLine, Trash2 } from "lucide-react"
-import axios from "axios"
+import axios from "../config"
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([])
