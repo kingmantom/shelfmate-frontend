@@ -1,9 +1,10 @@
-// src/pages/Inventory.jsx
+// Inventory.jsx (מלא כולל תמיכה בסריקת ברקוד והשלמה אוטומטית)
 "use client"
 
 import { useState, useEffect } from "react"
 import { PlusCircle, ScanLine, Trash2 } from "lucide-react"
 import axios from "../config"
+import { Html5QrcodeScanner } from "html5-qrcode"
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([])
@@ -15,6 +16,7 @@ export default function InventoryPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [err, setErr] = useState("")
+  const [isScanning, setIsScanning] = useState(false)
 
   useEffect(() => {
     axios.get("/api/inventory")
@@ -35,8 +37,8 @@ export default function InventoryPage() {
       const payload = {
         name:             newProduct.name,
         barcode:          newProduct.barcode,
-        quantity:         Number(newProduct.quantity),
-        desired_quantity: Number(newProduct.desired_quantity),
+        quantity:         Number(newProduct.quantity) || 1,
+        desired_quantity: Number(newProduct.desired_quantity) || 3,
         created_at:       new Date().toISOString().slice(0,10)
       }
       const { data } = await axios.post("/api/inventory", payload)
@@ -49,7 +51,44 @@ export default function InventoryPage() {
   }
 
   const handleScanProduct = () => {
-    alert("סריקת מוצר צפויה בקרוב…")
+    setIsScanning(true);
+
+    // ודא שה-div מופיע ב-DOM לפני שהסריקה מתחילה
+    setTimeout(() => {
+      const scanner = new Html5QrcodeScanner("scanner", { fps: 10, qrbox: 250 });
+
+      scanner.render(
+        async (decodedText) => {
+          scanner.clear();
+          setIsScanning(false);
+
+          try {
+            const res = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
+
+            if (res.data.status === 1) {
+              const product = res.data.product;
+              setNewProduct(prev => ({
+                ...prev,
+                name: product.product_name_he || product.product_name || "",
+                barcode: decodedText
+              }));
+              alert("המוצר זוהה והוזן אוטומטית. בדוק את הפרטים והוסף.");
+            } else {
+              setNewProduct(prev => ({
+                ...prev,
+                name: "",
+                barcode: decodedText
+              }));
+              alert("המוצר לא נמצא במאגר. הזן שם ידנית והוסף.");
+            }
+          } catch (error) {
+            console.error(error);
+            alert("שגיאה בהבאת מוצר. נסה שוב.");
+          }
+        },
+        (err) => console.warn("שגיאה בסריקה", err)
+      );
+    }, 300);
   }
 
   const removeItem = async (id) => {
@@ -61,7 +100,6 @@ export default function InventoryPage() {
     }
   }
 
-  // ✏️ פונקציה לעדכון סף התראה
   const updateThreshold = async (id, oldThreshold) => {
     const input = prompt(`הכנס סף התראה חדש (נוכחי: ${oldThreshold})`)
     const newThreshold = Number(input)
@@ -134,7 +172,9 @@ export default function InventoryPage() {
             </button>
           </div>
 
-          {/* הודעות טעינה/שגיאה */}
+          {/* אזור לסריקה */}
+          {isScanning && <div id="scanner" className="mb-6" style={{ maxWidth: 300, margin: "auto" }}></div>}
+
           {err && <p className="text-red-600 mb-2">{err}</p>}
           {isLoading && <p className="text-gray-500 mb-2">טוען...</p>}
 
