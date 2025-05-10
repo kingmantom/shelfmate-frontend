@@ -14,8 +14,8 @@ export default function ManagerDashboard() {
     },
     {
       title: "גרף חיזוי",
-      description: "גרף עמודות לפי מוצר לחיזוי הזמנות לחודש הבא",
-      path: "/consumption-last-year",  // ItemForecastByMonth.jsx
+      description: "בחר בין תחזית עונתית להיסטוריית צריכה",
+      path: "/forecast-selector",     // ForecastSelector.jsx
     },
     {
       title: "מצב מלאי נוכחי",
@@ -27,22 +27,19 @@ export default function ManagerDashboard() {
   // פונקציה ששולחת את רשימת המוצרים במלאי נמוך למייל
   const handleSendLowStock = async () => {
     try {
-      // 1. מביאים את המוצרים במלאי נמוך
       const { data: lowStockItems } = await axios.get("/api/low-stock");
       if (lowStockItems.length === 0) {
         return alert("אין מוצרים במלאי נמוך כרגע");
       }
 
-      // 2. בונים תוכן HTML למייל
       let htmlContent = "<h2>רשימת מוצרים במלאי נמוך</h2><ul>";
       lowStockItems.forEach((item) => {
         htmlContent += `<li><strong>${item.name}</strong> (כמות: ${item.quantity} / סף: ${item.threshold})</li>`;
       });
       htmlContent += "</ul>";
 
-      // 3. שולחים את המייל דרך ה־API שיצרנו
       await axios.post("/api/send-alert", {
-        email: "tomwas2000@gmail.com", // TODO
+        email: "tomwas2000@gmail.com",
         subject: "🚨 התראה: מלאי נמוך ב-ShelfMate",
         html: htmlContent,
       });
@@ -60,7 +57,6 @@ export default function ManagerDashboard() {
         📋 ShelfMate Admin Dashboard
       </h1>
 
-      {/* כפתור התראה באמצע */}
       <div className="flex justify-center mb-8">
         <button
           onClick={handleSendLowStock}
@@ -70,7 +66,6 @@ export default function ManagerDashboard() {
         </button>
       </div>
 
-      {/* שאר הלוחות */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {dashboardItems.map((item) => (
           <div
