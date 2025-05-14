@@ -1,124 +1,125 @@
-// Inventory.jsx (מלא כולל תמיכה בסריקת ברקוד והשלמה אוטומטית)
-"use client"
+// src/pages/Inventory.jsx
+"use client";
 
-import { useState, useEffect } from "react"
-import { PlusCircle, ScanLine, Trash2 } from "lucide-react"
-import axios from "../config"
-import { Html5QrcodeScanner } from "html5-qrcode"
+import { useState, useEffect } from "react";
+import { PlusCircle, ScanLine, Trash2 } from "lucide-react";
+import axios from "../config";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState([])
+  const [products, setProducts] = useState([]);
   const [newProduct, setNewProduct] = useState({
     name: "",
     barcode: "",
     quantity: "",
-    desired_quantity: "",
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [err, setErr] = useState("")
-  const [isScanning, setIsScanning] = useState(false)
+    expiry_date: "",
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
-    axios.get("/api/inventory")
+    axios
+      .get("/api/inventory")
       .then(({ data }) => setProducts(data))
       .catch(() => setErr("שגיאה בטעינת מלאי"))
-      .finally(() => setIsLoading(false))
-  }, [])
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  // אתחול הסורק
+  useEffect(() => {
+    if (!isScanning) return;
+    const scanner = new Html5QrcodeScanner("scanner", { fps: 10, qrbox: 250 });
+    scanner.render(
+      async (decoded) => {
+        await scanner.clear();
+        setIsScanning(false);
+        try {
+          const res = await axios.get(
+            `https://world.openfoodfacts.org/api/v0/product/${decoded}.json`
+          );
+          if (res.data.status === 1) {
+            const prod = res.data.product;
+            setNewProduct((p) => ({
+              ...p,
+              name: prod.product_name_he || prod.product_name || "",
+              barcode: decoded,
+            }));
+            alert("המוצר זוהה והוזן אוטומטית");
+          } else {
+            setNewProduct((p) => ({ ...p, name: "", barcode: decoded }));
+            alert("המוצר לא נמצא במאגר");
+          }
+        } catch {
+          alert("שגיאה בהבאת מוצר");
+        }
+      },
+      (err) => {
+        console.warn(err);
+        setIsScanning(false);
+      }
+    );
+  }, [isScanning]);
+
+  const handleScanProduct = () => setIsScanning(true);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setNewProduct(prev => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setNewProduct((p) => ({ ...p, [name]: value }));
+  };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.barcode) return
-
+    if (!newProduct.name || !newProduct.barcode) return;
     try {
       const payload = {
-        name:             newProduct.name,
-        barcode:          newProduct.barcode,
-        quantity:         Number(newProduct.quantity) || 1,
-        desired_quantity: Number(newProduct.desired_quantity) || 3,
-        created_at:       new Date().toISOString().slice(0,10)
-      }
-      const { data } = await axios.post("/api/inventory", payload)
-      setProducts(prev => [...prev, { id: data.id, threshold: 5, ...payload }])
-      setNewProduct({ name: "", barcode: "", quantity: "", desired_quantity: "" })
-      setErr("")
+        ...newProduct,
+        quantity: Number(newProduct.quantity) || 1,
+        threshold: 5,
+        created_at: new Date().toISOString().slice(0, 10),
+      };
+      const { data } = await axios.post("/api/inventory", payload);
+      setProducts((p) => [...p, { id: data.id, ...payload }]);
+      setNewProduct({ name: "", barcode: "", quantity: "", expiry_date: "" });
+      setErr("");
     } catch {
-      setErr("שגיאה בהוספת מוצר")
+      setErr("שגיאה בהוספת מוצר");
     }
-  }
-
-  const handleScanProduct = () => {
-    setIsScanning(true);
-
-    // ודא שה-div מופיע ב-DOM לפני שהסריקה מתחילה
-    setTimeout(() => {
-      const scanner = new Html5QrcodeScanner("scanner", { fps: 10, qrbox: 250 });
-
-      scanner.render(
-        async (decodedText) => {
-          scanner.clear();
-          setIsScanning(false);
-
-          try {
-            const res = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
-
-            if (res.data.status === 1) {
-              const product = res.data.product;
-              setNewProduct(prev => ({
-                ...prev,
-                name: product.product_name_he || product.product_name || "",
-                barcode: decodedText
-              }));
-              alert("המוצר זוהה והוזן אוטומטית. בדוק את הפרטים והוסף.");
-            } else {
-              setNewProduct(prev => ({
-                ...prev,
-                name: "",
-                barcode: decodedText
-              }));
-              alert("המוצר לא נמצא במאגר. הזן שם ידנית והוסף.");
-            }
-          } catch (error) {
-            console.error(error);
-            alert("שגיאה בהבאת מוצר. נסה שוב.");
-          }
-        },
-        (err) => console.warn("שגיאה בסריקה", err)
-      );
-    }, 300);
-  }
+  };
 
   const removeItem = async (id) => {
     try {
-      await axios.delete(`/api/inventory/${id}`)
-      setProducts(prev => prev.filter(p => p.id !== id))
+      await axios.delete(`/api/inventory/${id}`);
+      setProducts((p) => p.filter((item) => item.id !== id));
     } catch {
-      setErr("שגיאת מחיקה")
+      setErr("שגיאת מחיקה");
     }
-  }
+  };
 
-  const updateThreshold = async (id, oldThreshold) => {
-    const input = prompt(`הכנס סף התראה חדש (נוכחי: ${oldThreshold})`)
-    const newThreshold = Number(input)
-    if (isNaN(newThreshold)) return alert('ערך לא תקין')
+  const updateThreshold = async (id, old) => {
+    const input = prompt(`סף חדש (נוכחי: ${old})`);
+    const nw = Number(input);
+    if (isNaN(nw)) return alert("ערך לא תקין");
     try {
-      await axios.put(`/api/inventory/${id}`, { threshold: newThreshold })
-      setProducts(prev =>
-        prev.map(p => p.id === id ? { ...p, threshold: newThreshold } : p)
-      )
+      await axios.put(`/api/inventory/${id}`, { threshold: nw });
+      setProducts((p) => p.map(item => item.id===id ? {...item, threshold: nw} : item));
     } catch {
-      setErr("שגיאה בעדכון סף")
+      setErr("שגיאה בעדכון סף");
     }
-  }
+  };
+
+  const isExpired = (expiry) => {
+    if (!expiry) return false;
+    const days = Math.ceil(
+      (new Date(expiry) - new Date()) / (1000 * 60 * 60 * 24)
+    );
+    return days <= 3;
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6 lg:p-8 flex items-center justify-center">
-      <div className="w-full max-w-5xl bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 md:p-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-center mb-8">ניהול מלאי</h1>
+    <div className="min-h-screen bg-gray-100 p-6 flex justify-center">
+      <div className="w-full max-w-5xl bg-white rounded-lg shadow">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold text-center mb-6">ניהול מלאי</h1>
 
           {/* טופס הוספה */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -126,15 +127,15 @@ export default function InventoryPage() {
               name="name"
               value={newProduct.name}
               onChange={handleInputChange}
-              placeholder="שם המוצר"
-              className="h-12 px-4 rounded-lg border focus:ring-2 focus:ring-blue-500"
+              placeholder="שם מוצר"
+              className="border rounded p-2"
             />
             <input
               name="barcode"
               value={newProduct.barcode}
               onChange={handleInputChange}
               placeholder="ברקוד"
-              className="h-12 px-4 rounded-lg border focus:ring-2 focus:ring-blue-500"
+              className="border rounded p-2"
             />
             <input
               name="quantity"
@@ -142,88 +143,96 @@ export default function InventoryPage() {
               value={newProduct.quantity}
               onChange={handleInputChange}
               placeholder="כמות"
-              className="h-12 px-4 rounded-lg border focus:ring-2 focus:ring-blue-500"
+              className="border rounded p-2"
             />
             <input
-              name="desired_quantity"
-              type="number"
-              value={newProduct.desired_quantity}
+              name="expiry_date"
+              type="date"
+              value={newProduct.expiry_date}
               onChange={handleInputChange}
-              placeholder="כמות רצויה"
-              className="h-12 px-4 rounded-lg border focus:ring-2 focus:ring-blue-500"
+              className="border rounded p-2"
             />
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-8 justify-center sm:justify-start">
+          <div className="flex gap-4 mb-8 justify-center">
             <button
               onClick={handleAddProduct}
               disabled={!newProduct.name || !newProduct.barcode}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white px-5 py-2 rounded-lg"
+              className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              <PlusCircle className="h-5 w-5" />
-              הוסף מוצר
+              <PlusCircle className="inline-block mr-1" /> הוסף מוצר
             </button>
             <button
               onClick={handleScanProduct}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg"
+              className="bg-blue-600 text-white px-4 py-2 rounded"
             >
-              <ScanLine className="h-5 w-5" />
-              סריקת מוצר
+              <ScanLine className="inline-block mr-1" /> סריקת מוצר
             </button>
           </div>
 
-          {/* אזור לסריקה */}
-          {isScanning && <div id="scanner" className="mb-6" style={{ maxWidth: 300, margin: "auto" }}></div>}
+          {isScanning && (
+            <div id="scanner" className="mb-6 mx-auto" style={{ width: 300 }} />
+          )}
 
           {err && <p className="text-red-600 mb-2">{err}</p>}
-          {isLoading && <p className="text-gray-500 mb-2">טוען...</p>}
+          {isLoading && <p>טוען...</p>}
 
-          {/* טבלה */}
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0">
+          {/* הטבלה */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">פעולה</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">שם המוצר</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">ברקוד</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">כמות</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">כמות רצויה</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">סף התראה</th>
+                  <th className="p-2 text-right">פעולה</th>
+                  <th className="p-2 text-right">שם מוצר</th>
+                  <th className="p-2 text-right">ברקוד</th>
+                  <th className="p-2 text-right">כמות</th>
+                  <th className="p-2 text-right">סף התראה</th>
+                  <th className="p-2 text-right">תוקף</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading
-                  ? <tr><td colSpan={6} className="py-4 text-center">טוען...</td></tr>
-                  : products.length === 0
-                    ? <tr><td colSpan={6} className="py-4 text-center">אין מוצרים במלאי</td></tr>
-                    : products.map((p, i) => (
-                        <tr key={p.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                          <td className="px-4 py-2 text-right">
-                            <button onClick={() => removeItem(p.id)} className="flex items-center gap-1 text-red-600">
-                              <Trash2 className="h-4 w-4" /><span>הסר</span>
-                            </button>
-                          </td>
-                          <td className="px-4 py-2 text-right">{p.name}</td>
-                          <td className="px-4 py-2 text-right">{p.barcode}</td>
-                          <td className="px-4 py-2 text-right">{p.quantity}</td>
-                          <td className="px-4 py-2 text-right">{p.desired_quantity}</td>
-                          <td className="px-4 py-2 text-right flex items-center gap-2">
-                            <span>{p.threshold}</span>
-                            <button
-                              onClick={() => updateThreshold(p.id, p.threshold)}
-                              className="text-blue-600 hover:underline text-sm"
-                            >
-                              שנה
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                }
+              <tbody>
+                {products.length === 0 && !isLoading && (
+                  <tr><td colSpan={6} className="p-4 text-center">אין מוצרים</td></tr>
+                )}
+                {products.map((p, i) => (
+                  <tr
+                    key={p.id}
+                    className={i % 2 === 0 ? 'bg-white' : 'bg-gray-100'}
+                  >
+                    <td className="p-2 text-right">
+                      <button
+                        onClick={() => removeItem(p.id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="inline-block mr-1"/> הסר
+                      </button>
+                    </td>
+                    <td className="p-2 text-right">{p.name}</td>
+                    <td className="p-2 text-right">{p.barcode}</td>
+                    <td className="p-2 text-right">{p.quantity}</td>
+                    <td className="p-2 text-right">
+                      {p.threshold}{' '}
+                      <button
+                        onClick={() => updateThreshold(p.id, p.threshold)}
+                        className="text-blue-600 text-sm"
+                      >
+                        שנה
+                      </button>
+                    </td>
+                    <td
+                      className={`p-2 text-right ${
+                        isExpired(p.expiry_date) ? 'text-red-600 font-bold' : ''
+                      }`}
+                    >
+                      {p.expiry_date || '—'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

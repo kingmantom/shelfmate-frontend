@@ -6,11 +6,10 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);    // { email, role }
+  const [user, setUser] = useState(null); // { email, role }
   const navigate = useNavigate();
 
   const login = (email, password) => {
-    // בדיקה פשוטה לפי הסיסמה
     if (password === 'admin' || password === 'employee') {
       const role = password;
       setUser({ email, role });
