@@ -96,7 +96,7 @@ export default function ManagerDashboard() {
 
         <button
   onClick={() =>
-    window.open("https://shelfmate-backend.onrender.com/api/export-inventory", "_blank")
+    window.open("https://shelfmate-server.onrender.com/api/export-inventory", "_blank")
   }
   className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition"
 >
