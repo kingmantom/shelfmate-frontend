@@ -1,30 +1,43 @@
 // src/pages/ManagerDashboard.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../config";
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [expiredCount, setExpiredCount] = useState(0);
+  const [inventoryCount, setInventoryCount] = useState(0);
+
+  useEffect(() => {
+    // קבלת מספר פריטים במלאי כולל
+    axios.get("/api/stats").then(({ data }) => setInventoryCount(data.inventory_rows));
+
+    // קבלת רשימת חוסרים ופריטים שפג תוקפם
+    axios.get("/api/low-stock").then(({ data }) => {
+      setLowStockCount(data.filter(item => item.quantity < item.threshold).length);
+      setExpiredCount(data.filter(item => item.expiry_date && item.expiry_date <= new Date().toISOString().slice(0, 10)).length);
+    });
+  }, []);
 
   const dashboardItems = [
     {
       title: "גרף צריכה",
       description: "גרף צריכה ובזבוזים מעודכן לשנה אחורה",
-      path: "/forcast",                // Forcast.jsx
+      path: "/forcast",
     },
     {
       title: "גרף חיזוי",
       description: "בחר בין תחזית עונתית להיסטוריית צריכה",
-      path: "/forecast-selector",     // ForecastSelector.jsx
+      path: "/forecast-selector",
     },
     {
       title: "מצב מלאי נוכחי",
       description: "טבלת מלאי נוכחית עם יכולת הוספה והורדה של מוצרים",
-      path: "/inventory",              // Inventory.jsx
+      path: "/inventory",
     },
   ];
 
-  // פונקציה ששולחת את רשימת המוצרים במלאי נמוך למייל
   const handleSendLowStock = async () => {
     try {
       const { data: lowStockItems } = await axios.get("/api/low-stock");
@@ -57,13 +70,38 @@ export default function ManagerDashboard() {
         📋 ShelfMate Admin Dashboard
       </h1>
 
-      <div className="flex justify-center mb-8">
+      {/* סטטיסטיקות */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 text-center">
+        <div className="bg-white rounded-lg p-4 shadow">
+          <div className="text-2xl font-bold text-blue-600">{inventoryCount}</div>
+          <div className="text-gray-700">סה"כ מוצרים</div>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow">
+          <div className="text-2xl font-bold text-yellow-600">{lowStockCount}</div>
+          <div className="text-gray-700">מלאי נמוך</div>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow">
+          <div className="text-2xl font-bold text-red-600">{expiredCount}</div>
+          <div className="text-gray-700">מוצרים שפג תוקפם</div>
+        </div>
+      </div>
+
+      <div className="flex justify-center mb-8 gap-4">
         <button
           onClick={handleSendLowStock}
           className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition"
         >
           שלח רשימת חוסרים
         </button>
+
+        <button
+  onClick={() =>
+    window.open("https://shelfmate-backend.onrender.com/api/export-inventory", "_blank")
+  }
+  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition"
+>
+  ייצוא מלאי לאקסל
+</button>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
