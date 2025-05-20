@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../config";
+import { useAuth } from "../AuthContext"; // הוסף למעלה
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [lowStockCount, setLowStockCount] = useState(0);
   const [expiredCount, setExpiredCount] = useState(0);
   const [inventoryCount, setInventoryCount] = useState(0);
+  const { user } = useAuth(); // הוסף בתוך הפונקציה הראשית
 
   useEffect(() => {
     // קבלת מספר פריטים במלאי כולל
@@ -52,10 +54,11 @@ export default function ManagerDashboard() {
       htmlContent += "</ul>";
 
       await axios.post("/api/send-alert", {
-        email: "tomwas2000@gmail.com",
+        email: user?.email || "tomwas2000@gmail.com",  // זה ייקח את המייל של המשתמש
         subject: "🚨 התראה: מלאי נמוך ב-ShelfMate",
         html: htmlContent,
       });
+      
 
       alert("המייל נשלח בהצלחה!");
     } catch (err) {

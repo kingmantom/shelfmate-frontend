@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate();
 
   const login = (email, password) => {
-    if (password === 'admin' && email === 'tomwas2000@gmail.com') {
+    if (password === 'admin' ) {
       setUser({ email, role: 'admin' });
       navigate('/dashboard');
       return;
